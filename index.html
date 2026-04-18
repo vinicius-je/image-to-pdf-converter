@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#007bff"> 
+  <title>Image to PDF</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial;
+      background: linear-gradient(180deg, #f0f7ff, #ffffff);
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      min-height: 100vh;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    /* Upload */
+    .file-upload {
+      padding: 16px;
+      text-align: center;
+      border: 2px dashed #007bff;
+      border-radius: 14px;
+      background: #f0f7ff;
+      color: #007bff;
+      cursor: pointer;
+    }
+
+    /* Buttons */
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #007bff, #0056b3);
+    }
+
+    .danger {
+      background: linear-gradient(135deg, #ff4d4d, #cc0000);
+    }
+
+    /* Preview */
+    #preview {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 14px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .preview-item {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .preview-item img {
+      width: 100%;
+    }
+
+    .badge {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,0,0,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .remove-btn i {
+      font-size: 18px;
+      color: white;
+    }
+
+    .empty {
+      text-align: center;
+      color: #888;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Converter imagem em PDF</h1>
+
+  <label for="imageInput" class="file-upload">Selecionar imagens</label>
+  <input type="file" id="imageInput" accept="image/*" multiple hidden>
+
+  <div class="actions">
+    <button onclick="convertToPDF()">
+      <i class="material-symbols-outlined">file_export</i>
+      Gerar PDF
+    </button>
+
+    <button class="danger" onclick="removeAllImages()">
+      <i class="material-symbols-outlined">delete</i>
+      Limpar
+    </button>
+  </div>
+
+  <div id="preview">
+    <div class="empty">Nenhuma imagem selecionada</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+  const imageInput = document.getElementById('imageInput');
+  const preview = document.getElementById('preview');
+
+  let selectedFiles = [];
+
+  imageInput.addEventListener('change', () => {
+    selectedFiles = [...selectedFiles, ...Array.from(imageInput.files)];
+    imageInput.value = '';
+    renderPreview();
+  });
+
+  function renderPreview() {
+    preview.innerHTML = '';
+
+    if (!selectedFiles.length) {
+      preview.innerHTML = '<div class="empty">Nenhuma imagem selecionada</div>';
+      return;
+    }
+
+    selectedFiles.forEach((file, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'preview-item';
+
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+
+      const badge = document.createElement('div');
+      badge.className = 'badge';
+      badge.innerText = index + 1;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.innerHTML = '<i class="material-symbols-outlined">delete</i>';
+      removeBtn.onclick = () => removeImage(index);
+
+      wrapper.appendChild(img);
+      wrapper.appendChild(badge);
+      wrapper.appendChild(removeBtn);
+
+      preview.appendChild(wrapper);
+    });
+  }
+
+  function removeImage(index) {
+    selectedFiles.splice(index, 1);
+    renderPreview();
+  }
+
+  function removeAllImages() {
+    selectedFiles = [];
+    renderPreview();
+  }
+
+  async function convertToPDF() {
+    const { jsPDF } = window.jspdf;
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+
+    const margin = 20;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const usableWidth = pageWidth - margin * 2;
+    const usableHeight = pageHeight - margin * 2;
+
+    if (!selectedFiles.length) {
+      alert('Selecione pelo menos uma imagem');
+      return;
+    }
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const imgData = await fileToBase64(selectedFiles[i]);
+
+      const img = new Image();
+      img.src = imgData;
+      await new Promise(r => img.onload = r);
+
+      let w = usableWidth;
+      let h = (img.height * w) / img.width;
+
+      if (h > usableHeight) {
+        h = usableHeight;
+        w = (img.width * h) / img.height;
+      }
+
+      if (i > 0) pdf.addPage();
+
+      pdf.addImage(imgData, 'JPEG', margin + (usableWidth - w)/2, margin + (usableHeight - h)/2, w, h);
+    }
+
+    pdf.save(generateFileName());
+  }
+
+  function generateFileName() {
+    return new Date().toLocaleDateString('pt-BR').replace(/\//g, '-') + '.pdf';
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+    });
+  }
+</script>
+
+</body>
+</html>
